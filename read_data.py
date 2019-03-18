@@ -144,6 +144,8 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
         return inds
 
     triplets = []
+    selectedTriplets = []
+
     indices = create_indices(np.asarray(labels))
     unique_labels = np.unique(np.asarray(labels))
     n_classes = unique_labels.shape[0]
@@ -153,6 +155,26 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
     for x in tqdm(range(num_triplets)):
         if len(already_idxs) >= batch_size:
             already_idxs = set()
+            if model is not None:
+                N = len(triplets)
+                allImgsA = np.empty((N, 32, 32, 1))
+                allImgsB = np.empty((N, 32, 32, 1))
+                allImgsC = np.empty((N, 32, 32, 1))
+
+                for i, triplet in enumerate(triplets):
+                    a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
+                    allImgsA[i] = np.expand_dims(a, -1).astype(float)
+                    allImgsB[i] = np.expand_dims(p, -1).astype(float)
+                    allImgsC[i] = np.expand_dims(n, -1).astype(float)
+
+                scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
+                idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
+                worstIdx = idx[:int(topPer*len(idx))]
+                selectedTriplets.append(np.array(triplets)[worstIdx].tolist())
+            else:
+                selectedTriplets.append(triplets)
+            triplets = []
+
         c1 = np.random.randint(0, n_classes)
         while c1 in already_idxs:
             c1 = np.random.randint(0, n_classes)
@@ -170,42 +192,27 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
         n3 = np.random.randint(0, len(indices[c2]))
         triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
 
-    if model is not None:
-        scores = []
-        N = len(triplets)
-        allImgsA = np.empty((N, 32, 32, 1))
-        allImgsB = np.empty((N, 32, 32, 1))
-        allImgsC = np.empty((N, 32, 32, 1))
+    if len(triplets) > 0:
+        if model is not None:
+            N = len(triplets)
+            allImgsA = np.empty((N, 32, 32, 1))
+            allImgsB = np.empty((N, 32, 32, 1))
+            allImgsC = np.empty((N, 32, 32, 1))
 
-        for i, triplet in enumerate(triplets):
-            a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
-            allImgsA[i] = np.expand_dims(a, -1).astype(float)
-            allImgsB[i] = np.expand_dims(p, -1).astype(float)
-            allImgsC[i] = np.expand_dims(n, -1).astype(float)
-        print("End load images, predicting")
-        scores = np.empty(N)
+            for i, triplet in enumerate(triplets):
+                a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
+                allImgsA[i] = np.expand_dims(a, -1).astype(float)
+                allImgsB[i] = np.expand_dims(p, -1).astype(float)
+                allImgsC[i] = np.expand_dims(n, -1).astype(float)
 
-        for batchId in range(ceil(N/batch_size)):
-            print(batchId)
-            low = batchId*batch_size
-            if (batchId + 1)*batch_size > N:
-                high = N
-            else:
-                high = (batchId+1)*batch_size
-            scores[low:high] = np.squeeze(model.predict([allImgsA[low:high], allImgsB[low:high], allImgsC[low:high]]))
-        
-        input()
-        print("Start Sort")
-        idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
-        input()
-        print("End Sort")
-        worstIdx = idx[:int(topPer*len(idx))]
+            scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
+            idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
+            worstIdx = idx[:int(topPer*len(idx))]
+            selectedTriplets.append(np.array(triplets)[worstIdx].tolist())
+        else:
+            selectedTriplets.append(triplets)
 
-        triplets = np.array(triplets)[worstIdx]
-    else:
-        triplets = np.array(triplets)
-
-    return triplets
+    return np.array(selectedTriplets)
 
 
 class HPatches():
