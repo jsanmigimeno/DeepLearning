@@ -132,7 +132,7 @@ class hpatches_sequence_folder:
 def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
     if model is not None:
         topPer = 0.25
-        num_triplets = int(num_triplets*topPer)
+        num_triplets = int(num_triplets/topPer)
 
     def create_indices(_labels):
         inds = dict()
@@ -183,7 +183,7 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
 
         scores = model.predict([allImgsA, allImgsB, allImgsC])
         
-        idx = np.flip(np.argsort(np.squeeze(scores)))
+        idx = np.flip(np.argsort(np.squeeze(scores)), axis=0)
         
         worstIdx = idx[:int(topPer*len(idx))]
 
