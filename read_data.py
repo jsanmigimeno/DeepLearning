@@ -23,6 +23,7 @@ tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
 class DenoiseHPatches(keras.utils.Sequence):
     """Class for loading an HPatches sequence from a sequence folder"""
     itr = tps
+
     def __init__(self, seqs, batch_size = 32):
         self.all_paths = []
         self.batch_size = batch_size
@@ -30,6 +31,15 @@ class DenoiseHPatches(keras.utils.Sequence):
         self.n_channels = 1
         self.sequences = {}
         self.sequences_n = {}
+        
+        # Augmentation params
+        self.transform = False
+        self.rotationRange = [-90, 90]
+        self.zoomRange = [0.8, 1.2]
+        self.verticalFlip = True
+        self.horizontalFlip = True
+        self.fill_mode='nearest'
+
         for base in tqdm(seqs):
             name = base.split('/')
             self.name = name[-1]
@@ -51,9 +61,31 @@ class DenoiseHPatches(keras.utils.Sequence):
         self.on_epoch_end()
 
     def get_images(self, index):
+        # If transform enabled, get augementation params
+        params = {}
+        if self.transform:
+            params['theta'] = np.random.uniform(self.rotationRange[0], self.rotationRange[1])
+            params['zx'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
+            params['zy'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
+            
+            if self.verticalFlip:
+                params['flip_vertical'] = bool(np.random.randint(2))
+            if self.horizontalFlip:
+                params['flip_horizontal'] = bool(np.random.randint(2))
+
+        def transform_img(img, transform, params):
+            if transform:
+                IDGgen = IDG()
+                img = np.expand_dims(img, -1)
+                img = IDGgen.apply_transform(img, params)
+                img = np.squeeze(img)
+            return img
+
         path = self.all_paths[index]
-        img = self.sequences[path].astype(np.float32)
-        img_n = self.sequences_n[path].astype(np.float32)
+        img = self.sequences[path]
+        img_n = self.sequences_n[path]
+        img = transform_img(img, self.transform, params).astype(np.float32)
+        img_n = transform_img(img_n, self.transform, params).astype(np.float32)
         return img, img_n
 
     def __len__(self):
@@ -224,7 +256,6 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.zoomRange = [0.8, 1.2]
         self.verticalFlip = True
         self.horizontalFlip = True
-        self.fill_mode='nearest'
 
     def get_image(self, t):
         def transform_img(img, transform):
