@@ -8,6 +8,7 @@ import cv2
 import sys
 import json
 import keras
+from keras import backend as K
 from tqdm import tqdm
 import glob
 import random
@@ -128,7 +129,11 @@ class hpatches_sequence_folder:
 
 
 
-def generate_triplets(labels, num_triplets, batch_size):
+def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
+    if model is not None:
+        topPer = 0.25
+        num_triplets = int(num_triplets*topPer)
+
     def create_indices(_labels):
         inds = dict()
         for idx, ind in enumerate(_labels):
@@ -136,6 +141,7 @@ def generate_triplets(labels, num_triplets, batch_size):
                 inds[ind] = []
             inds[ind].append(idx)
         return inds
+
     triplets = []
     indices = create_indices(np.asarray(labels))
     unique_labels = np.unique(np.asarray(labels))
@@ -162,7 +168,29 @@ def generate_triplets(labels, num_triplets, batch_size):
                 n2 = np.random.randint(0, len(indices[c1]))
         n3 = np.random.randint(0, len(indices[c2]))
         triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
-    return np.array(triplets)
+
+    if model is not None:
+        scores = []
+        #allImgs = np.empty((len(triplets), 32, 32, 1))
+        for i, triplet in enumerate(triplets):
+            a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
+            img_a = np.expand_dims(a, -1).astype(float)
+            img_p = np.expand_dims(p, -1).astype(float)
+            img_n = np.expand_dims(n, -1).astype(float)
+            img_a = np.expand_dims(img_a, 0).astype(float)
+            img_p = np.expand_dims(img_p, 0).astype(float)
+            img_n = np.expand_dims(img_n, 0).astype(float)
+            scores.append(model.predict([img_a, img_p, img_n]))
+        
+        idx = np.flip(np.argsort(np.squeeze(scores)))
+        
+        worstIdx = idx[:int(topPer*len(idx))]
+
+        triplets = np.array(triplets)[worstIdx]
+    else:
+        triplets = np.array(triplets)
+
+    return triplets
 
 
 class HPatches():
@@ -250,7 +278,8 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.data = data
         self.labels = labels
         self.num_triplets = num_triplets
-        self.on_epoch_end()
+        self.descriptorModel = None
+        #self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
         self.zoomRange = [0.8, 1.2]
@@ -313,7 +342,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # 'Updates indexes after each epoch'
-        self.triplets = generate_triplets(self.labels, self.num_triplets, 32)
+        self.triplets = generate_triplets(self.labels, self.num_triplets, 32, self.data, self.descriptorModel)
 
     
     
