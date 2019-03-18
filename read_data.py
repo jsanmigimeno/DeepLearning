@@ -180,11 +180,12 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
             allImgsA[i] = np.expand_dims(a, -1).astype(float)
             allImgsB[i] = np.expand_dims(p, -1).astype(float)
             allImgsC[i] = np.expand_dims(n, -1).astype(float)
-
+        print("End load images, predicting")
         scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
-        
+        input()
         print("Start Sort")
         idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
+        input()
         print("End Sort")
         worstIdx = idx[:int(topPer*len(idx))]
 
