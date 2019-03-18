@@ -171,9 +171,10 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
 
     if model is not None:
         scores = []
-        allImgsA = np.empty((len(triplets), 32, 32, 1))
-        allImgsB = np.empty((len(triplets), 32, 32, 1))
-        allImgsC = np.empty((len(triplets), 32, 32, 1))
+        N = len(triplets)
+        allImgsA = np.empty((N, 32, 32, 1))
+        allImgsB = np.empty((N, 32, 32, 1))
+        allImgsC = np.empty((N, 32, 32, 1))
 
         for i, triplet in enumerate(triplets):
             a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
@@ -181,7 +182,16 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
             allImgsB[i] = np.expand_dims(p, -1).astype(float)
             allImgsC[i] = np.expand_dims(n, -1).astype(float)
         print("End load images, predicting")
-        scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
+        scores = np.empty(N)
+
+        for batchId in range(ceil(N/batch_size)):
+            low = batchId*batch_size
+            if (batchId + 1)*batch_size > N:
+                high = N
+            else:
+                high = (batchId+1)*batch_size
+            scores[low:high] = np.squeeze(model.predict([allImgsA[low:high], allImgsB[low:high], allImgsC[low:high]]))
+        
         input()
         print("Start Sort")
         idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
