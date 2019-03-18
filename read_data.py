@@ -11,6 +11,7 @@ import keras
 from tqdm import tqdm
 import glob
 import random
+from keras.preprocessing.image import ImageDataGenerator as IDG
 
 splits = ['a', 'b', 'c', 'view', 'illum']
 tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
@@ -60,9 +61,11 @@ class DenoiseHPatches(keras.utils.Sequence):
         return int(np.floor(len(self.all_paths) / self.batch_size))
 
     def __getitem__(self, index):
+        # Define clean and noisy batch shapes
         img_clean = np.empty((self.batch_size,) + self.dim + (self.n_channels,))
         img_noise = np.empty((self.batch_size,) + self.dim + (self.n_channels,))
 
+        # for each image in the batch
         for i in range(self.batch_size):
             img, img_n = self.get_images(index*self.batch_size+i)    
             img_clean[i] = np.expand_dims(img, -1)
@@ -206,7 +209,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
     # 'Generates data for Keras'
     def __init__(self, data, labels, num_triplets = 1000000, batch_size=50, dim=(32,32), n_channels=1, shuffle=True):
         # 'Initialization'
-        self.transform = None
+        self.transform = False
         self.out_triplets = True
         self.dim = dim
         self.batch_size = batch_size
@@ -217,21 +220,42 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.num_triplets = num_triplets
         self.on_epoch_end()
 
-    def get_image(self, t):
-        def transform_img(img):
-            if self.transform is not None:
-                img = transform(img.numpy())
-            return img
+        self.rotationRange = [-30, 30]
+        self.zoomRange = [0.8, 1.2]
+        self.verticalFlip = True
+        self.horizontalFlip = True
+        self.fill_mode='nearest'
 
+    def get_image(self, t):
+        def transform_img(img, transform):
+            if transform:
+                IDGgen = IDG()
+                params = {}
+                params['theta'] = np.random.uniform(self.rotationRange[0], self.rotationRange[1])
+                params['zx'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
+                params['zy'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
+                
+                if self.verticalFlip:
+                    params['flip_vertical'] = bool(np.random.randint(2))
+                if self.horizontalFlip:
+                    params['flip_horizontal'] = bool(np.random.randint(2))
+
+                img = np.expand_dims(img, -1)
+                
+                img = IDGgen.apply_transform(img, params)
+                img = np.squeeze(img)
+            return img
+        
         a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
 
-        img_a = transform_img(a).astype(float)
-        img_p = transform_img(p).astype(float)
-        img_n = transform_img(n).astype(float)
+        img_a = transform_img(a, self.transform).astype(float)
+        img_p = transform_img(p, self.transform).astype(float)
+        img_n = transform_img(n, self.transform).astype(float)
 
         img_a = np.expand_dims(img_a, -1)
         img_p = np.expand_dims(img_p, -1)
         img_n = np.expand_dims(img_n, -1)
+        #img_a = np.zeros(img_a.shape)
         if self.out_triplets:
             return img_a, img_p, img_n
         else:
