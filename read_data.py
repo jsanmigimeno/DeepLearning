@@ -181,9 +181,9 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
             allImgsB[i] = np.expand_dims(p, -1).astype(float)
             allImgsC[i] = np.expand_dims(n, -1).astype(float)
 
-        scores = model.predict([allImgsA, allImgsB, allImgsC])
+        scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
         
-        idx = np.flip(np.argsort(np.squeeze(scores)), axis=0)
+        idx = np.flip(np.argsort(scores, kind='heapsort'), axis=0)
         
         worstIdx = idx[:int(topPer*len(idx))]
 
