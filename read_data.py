@@ -183,8 +183,9 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
 
         scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
         
-        idx = np.flip(np.argsort(scores, kind='heapsort'), axis=0)
-        
+        print("Start Sort")
+        idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
+        print("End Sort")
         worstIdx = idx[:int(topPer*len(idx))]
 
         triplets = np.array(triplets)[worstIdx]
