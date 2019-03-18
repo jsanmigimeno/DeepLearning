@@ -13,6 +13,7 @@ from tqdm import tqdm
 import glob
 import random
 from keras.preprocessing.image import ImageDataGenerator as IDG
+from math import ceil
 
 splits = ['a', 'b', 'c', 'view', 'illum']
 tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
@@ -185,6 +186,7 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
         scores = np.empty(N)
 
         for batchId in range(ceil(N/batch_size)):
+            print(batchId)
             low = batchId*batch_size
             if (batchId + 1)*batch_size > N:
                 high = N
