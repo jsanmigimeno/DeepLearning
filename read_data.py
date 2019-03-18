@@ -301,6 +301,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.labels = labels
         self.num_triplets = num_triplets
         self.descriptorModel = None
+        self.tripletsBatchSize = 200
         self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
@@ -364,7 +365,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # 'Updates indexes after each epoch'
-        self.triplets = generate_triplets(self.labels, self.num_triplets, 200, self.data, self.descriptorModel)
+        self.triplets = generate_triplets(self.labels, self.num_triplets, self.tripletsBatchSize, self.data, self.descriptorModel)
 
     
     
