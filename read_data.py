@@ -171,16 +171,17 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
 
     if model is not None:
         scores = []
-        #allImgs = np.empty((len(triplets), 32, 32, 1))
+        allImgsA = np.empty((len(triplets), 32, 32, 1))
+        allImgsB = np.empty((len(triplets), 32, 32, 1))
+        allImgsC = np.empty((len(triplets), 32, 32, 1))
+
         for i, triplet in enumerate(triplets):
             a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
-            img_a = np.expand_dims(a, -1).astype(float)
-            img_p = np.expand_dims(p, -1).astype(float)
-            img_n = np.expand_dims(n, -1).astype(float)
-            img_a = np.expand_dims(img_a, 0).astype(float)
-            img_p = np.expand_dims(img_p, 0).astype(float)
-            img_n = np.expand_dims(img_n, 0).astype(float)
-            scores.append(model.predict([img_a, img_p, img_n]))
+            allImgsA[i] = np.expand_dims(a, -1).astype(float)
+            allImgsB[i] = np.expand_dims(p, -1).astype(float)
+            allImgsC[i] = np.expand_dims(n, -1).astype(float)
+
+        scores = model.predict([allImgsA, allImgsB, allImgsC])
         
         idx = np.flip(np.argsort(np.squeeze(scores)))
         
@@ -279,7 +280,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.labels = labels
         self.num_triplets = num_triplets
         self.descriptorModel = None
-        #self.on_epoch_end()
+        self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
         self.zoomRange = [0.8, 1.2]
