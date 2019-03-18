@@ -228,6 +228,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
 
     def get_image(self, t):
         def transform_img(img, transform):
+            img = np.expand_dims(img, -1)
             if transform:
                 IDGgen = IDG()
                 params = {}
@@ -240,10 +241,8 @@ class DataGeneratorDesc(keras.utils.Sequence):
                 if self.horizontalFlip:
                     params['flip_horizontal'] = bool(np.random.randint(2))
 
-                img = np.expand_dims(img, -1)
-                
                 img = IDGgen.apply_transform(img, params)
-                img = np.squeeze(img)
+                #img = np.squeeze(img)
             return img
         
         a, p, n = self.data[t[0]], self.data[t[1]], self.data[t[2]]
@@ -252,9 +251,9 @@ class DataGeneratorDesc(keras.utils.Sequence):
         img_p = transform_img(p, self.transform).astype(float)
         img_n = transform_img(n, self.transform).astype(float)
 
-        img_a = np.expand_dims(img_a, -1)
-        img_p = np.expand_dims(img_p, -1)
-        img_n = np.expand_dims(img_n, -1)
+        # img_a = np.expand_dims(img_a, -1)
+        # img_p = np.expand_dims(img_p, -1)
+        # img_n = np.expand_dims(img_n, -1)
         #img_a = np.zeros(img_a.shape)
         if self.out_triplets:
             return img_a, img_p, img_n
