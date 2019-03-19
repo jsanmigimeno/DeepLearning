@@ -37,7 +37,6 @@ class DenoiseHPatches(keras.utils.Sequence):
         # Augmentation params
         self.transform = False
         self.rotationRange = [-90, 90]
-        self.zoomRange = [0.8, 1.2]
         self.verticalFlip = True
         self.horizontalFlip = True
         self.fill_mode='nearest'
@@ -67,8 +66,6 @@ class DenoiseHPatches(keras.utils.Sequence):
         params = {}
         if self.transform:
             params['theta'] = np.random.uniform(self.rotationRange[0], self.rotationRange[1])
-            params['zx'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
-            params['zy'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
             
             if self.verticalFlip:
                 params['flip_vertical'] = bool(np.random.randint(2))
@@ -301,7 +298,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.labels = labels
         self.num_triplets = num_triplets
         self.descriptorModel = None
-        self.tripletsBatchSize = 200
+        self.tripletsBatchSize = 32
         self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
