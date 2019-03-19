@@ -299,7 +299,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.num_triplets = num_triplets
         self.descriptorModel = None
         self.tripletsBatchSize = 32
-        #self.on_epoch_end()
+        self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
         self.zoomRange = [0.8, 1.2]
