@@ -167,7 +167,7 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
                 scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
                 idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
                 worstIdx = idx[:int(topPer*len(idx))]
-                selectedTriplets.extend(np.array(triplets)[worstIdx].tolist()[0])
+                selectedTriplets.extend(np.array(triplets)[worstIdx].tolist())
             else:
                 selectedTriplets.extend(triplets)
             triplets = []
@@ -205,9 +205,9 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
             scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
             idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
             worstIdx = idx[:int(topPer*len(idx))]
-            selectedTriplets.append(np.array(triplets)[worstIdx].tolist())
+            selectedTriplets.extend(np.array(triplets)[worstIdx].tolist())
         else:
-            selectedTriplets.append(triplets)
+            selectedTriplets.extend(triplets)
 
     return np.array(selectedTriplets)
 
