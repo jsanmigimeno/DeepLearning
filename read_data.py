@@ -167,9 +167,9 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
                 scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
                 idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
                 worstIdx = idx[:int(topPer*len(idx))]
-                selectedTriplets.append(np.array(triplets)[worstIdx].tolist()[0])
+                selectedTriplets.extend(np.array(triplets)[worstIdx].tolist()[0])
             else:
-                selectedTriplets.append(triplets)
+                selectedTriplets.extend(triplets)
             triplets = []
 
         c1 = np.random.randint(0, n_classes)
@@ -299,7 +299,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.num_triplets = num_triplets
         self.descriptorModel = None
         self.tripletsBatchSize = 32
-        self.on_epoch_end()
+        #self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
         self.zoomRange = [0.8, 1.2]
