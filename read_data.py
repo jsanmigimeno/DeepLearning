@@ -127,9 +127,8 @@ class hpatches_sequence_folder:
 
 
 
-def generate_triplets(labels, num_triplets, batch_size, data=None, model=None):
+def generate_triplets(labels, num_triplets, batch_size, data=None, model=None, topPer=0.75):
     if model is not None:
-        topPer = 0.25
         num_triplets = int(num_triplets/topPer)
 
     def create_indices(_labels):
@@ -298,6 +297,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.labels = labels
         self.num_triplets = num_triplets
         self.descriptorModel = None
+        self.hardPercent = 0.75
         self.tripletsBatchSize = 32
         self.on_epoch_end()
 
@@ -362,7 +362,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # 'Updates indexes after each epoch'
-        self.triplets = generate_triplets(self.labels, self.num_triplets, self.tripletsBatchSize, self.data, self.descriptorModel)
+        self.triplets = generate_triplets(self.labels, self.num_triplets, self.tripletsBatchSize, self.data, self.descriptorModel, self.hardPercent)
 
     
     
