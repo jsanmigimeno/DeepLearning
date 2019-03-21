@@ -127,7 +127,7 @@ class hpatches_sequence_folder:
 
 
 
-def generate_triplets(labels, num_triplets, batch_size, data=None, model=None, topPer=0.75):
+def generate_triplets(labels, num_triplets, batch_size, data=None, model=None, topPer=0.25):
     if model is not None:
         num_triplets = int(num_triplets/topPer)
 
@@ -164,9 +164,11 @@ def generate_triplets(labels, num_triplets, batch_size, data=None, model=None, t
                     allImgsC[i] = np.expand_dims(n, -1).astype(float)
 
                 scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
-                idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
-                worstIdx = idx[:int(topPer*len(idx))]
-                selectedTriplets.extend(np.array(triplets)[worstIdx].tolist())
+                nonZeroIdx = np.where(np.logical_not(scores==0))
+                if len(nonZeroIdx) > 0:
+                    idx = np.argsort(scores[nonZeroIdx], kind='quicksort')
+                    hardIdx = idx[:int(topPer*len(idx))]
+                    selectedTriplets.extend(np.array(triplets)[nonZeroIdx[hardIdx]].tolist())
             else:
                 selectedTriplets.extend(triplets)
             triplets = []
@@ -297,7 +299,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.labels = labels
         self.num_triplets = num_triplets
         self.descriptorModel = None
-        self.hardPercent = 0.75
+        self.hardPercent = 0.25
         self.tripletsBatchSize = 32
         self.on_epoch_end()
 
