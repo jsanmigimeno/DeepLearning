@@ -8,10 +8,12 @@ import cv2
 import sys
 import json
 import keras
+from keras import backend as K
 from tqdm import tqdm
 import glob
 import random
 from keras.preprocessing.image import ImageDataGenerator as IDG
+from math import ceil
 
 splits = ['a', 'b', 'c', 'view', 'illum']
 tps = ['ref','e1','e2','e3','e4','e5','h1','h2','h3','h4','h5',\
@@ -35,7 +37,6 @@ class DenoiseHPatches(keras.utils.Sequence):
         # Augmentation params
         self.transform = False
         self.rotationRange = [-90, 90]
-        self.zoomRange = [0.8, 1.2]
         self.verticalFlip = True
         self.horizontalFlip = True
         self.fill_mode='nearest'
@@ -65,8 +66,6 @@ class DenoiseHPatches(keras.utils.Sequence):
         params = {}
         if self.transform:
             params['theta'] = np.random.uniform(self.rotationRange[0], self.rotationRange[1])
-            params['zx'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
-            params['zy'] = np.random.uniform(self.zoomRange[0], self.zoomRange[1])
             
             if self.verticalFlip:
                 params['flip_vertical'] = bool(np.random.randint(2))
@@ -128,7 +127,10 @@ class hpatches_sequence_folder:
 
 
 
-def generate_triplets(labels, num_triplets, batch_size):
+def generate_triplets(labels, num_triplets, batch_size, data=None, model=None, topPer=0.5):
+    if model is not None:
+        num_triplets = int(num_triplets/topPer)
+
     def create_indices(_labels):
         inds = dict()
         for idx, ind in enumerate(_labels):
@@ -136,7 +138,10 @@ def generate_triplets(labels, num_triplets, batch_size):
                 inds[ind] = []
             inds[ind].append(idx)
         return inds
+
     triplets = []
+    selectedTriplets = []
+
     indices = create_indices(np.asarray(labels))
     unique_labels = np.unique(np.asarray(labels))
     n_classes = unique_labels.shape[0]
@@ -146,6 +151,30 @@ def generate_triplets(labels, num_triplets, batch_size):
     for x in tqdm(range(num_triplets)):
         if len(already_idxs) >= batch_size:
             already_idxs = set()
+            if model is not None:
+                N = len(triplets)
+                allImgsA = np.empty((N, 32, 32, 1))
+                allImgsB = np.empty((N, 32, 32, 1))
+                allImgsC = np.empty((N, 32, 32, 1))
+
+                for i, triplet in enumerate(triplets):
+                    a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
+                    allImgsA[i] = np.expand_dims(a, -1).astype(float)
+                    allImgsB[i] = np.expand_dims(p, -1).astype(float)
+                    allImgsC[i] = np.expand_dims(n, -1).astype(float)
+
+                scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
+                zeroIdx = np.where(scores==0)[0]
+                nonZeroIdx = np.where(np.logical_not(scores==0))[0]
+                if len(nonZeroIdx) > 0:
+                    idx = np.argsort(scores[nonZeroIdx], kind='quicksort')
+                    hardIdx = idx[:int(topPer*len(idx))]
+                    selectedTriplets.extend(np.array(triplets)[nonZeroIdx[hardIdx]].tolist())
+                selectedTriplets.extend(np.array(triplets)[zeroIdx[:int(topPer*len(zeroIdx))]].tolist())
+            else:
+                selectedTriplets.extend(triplets)
+            triplets = []
+
         c1 = np.random.randint(0, n_classes)
         while c1 in already_idxs:
             c1 = np.random.randint(0, n_classes)
@@ -162,7 +191,28 @@ def generate_triplets(labels, num_triplets, batch_size):
                 n2 = np.random.randint(0, len(indices[c1]))
         n3 = np.random.randint(0, len(indices[c2]))
         triplets.append([indices[c1][n1], indices[c1][n2], indices[c2][n3]])
-    return np.array(triplets)
+
+    if len(triplets) > 0:
+        if model is not None:
+            N = len(triplets)
+            allImgsA = np.empty((N, 32, 32, 1))
+            allImgsB = np.empty((N, 32, 32, 1))
+            allImgsC = np.empty((N, 32, 32, 1))
+
+            for i, triplet in enumerate(triplets):
+                a, p, n = data[triplet[0]], data[triplet[1]], data[triplet[2]]
+                allImgsA[i] = np.expand_dims(a, -1).astype(float)
+                allImgsB[i] = np.expand_dims(p, -1).astype(float)
+                allImgsC[i] = np.expand_dims(n, -1).astype(float)
+
+            scores = np.squeeze(model.predict([allImgsA, allImgsB, allImgsC]))
+            idx = np.flip(np.argsort(scores, kind='quicksort'), axis=0)
+            worstIdx = idx[:int(topPer*len(idx))]
+            selectedTriplets.extend(np.array(triplets)[worstIdx].tolist())
+        else:
+            selectedTriplets.extend(triplets)
+
+    return np.array(selectedTriplets)
 
 
 class HPatches():
@@ -250,6 +300,9 @@ class DataGeneratorDesc(keras.utils.Sequence):
         self.data = data
         self.labels = labels
         self.num_triplets = num_triplets
+        self.descriptorModel = None
+        self.hardPercent = 0.25
+        self.tripletsBatchSize = 32
         self.on_epoch_end()
 
         self.rotationRange = [-30, 30]
@@ -313,7 +366,7 @@ class DataGeneratorDesc(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # 'Updates indexes after each epoch'
-        self.triplets = generate_triplets(self.labels, self.num_triplets, 32)
+        self.triplets = generate_triplets(self.labels, self.num_triplets, self.tripletsBatchSize, self.data, self.descriptorModel, self.hardPercent)
 
     
     
